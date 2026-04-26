@@ -29,8 +29,8 @@ export default function StocksPage() {
   async function fetchData() {
     try {
       const [stocksRes, signalsRes] = await Promise.all([
-        fetch("/api/stocks"),
-        fetch("/api/signals"),
+        fetch("/api/stocks", { cache: "no-store" }),
+        fetch("/api/signals", { cache: "no-store" }),
       ]);
       const stocksData = await stocksRes.json();
       const signalsData = await signalsRes.json();
@@ -59,6 +59,8 @@ export default function StocksPage() {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleRefresh = async () => {

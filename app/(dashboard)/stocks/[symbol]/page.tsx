@@ -52,18 +52,22 @@ export default function StockDetailPage() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
 
   useEffect(() => {
-    async function fetchStockDetail() {
+    async function fetchStockDetail(includeHistory = false) {
       try {
-        const [stockRes, histRes] = await Promise.all([
-          fetch(`/api/stocks/${symbol}`),
-          fetch(`/api/stocks/${symbol}/historical`),
-        ]);
+        const stockRes = await fetch(`/api/stocks/${symbol}`, {
+          cache: "no-store",
+        });
 
         const stockData = await stockRes.json();
-        const histData = await histRes.json();
-
         setStock(stockData.data);
-        setHistoricalData(histData.data || []);
+
+        if (includeHistory) {
+          const histRes = await fetch(`/api/stocks/${symbol}/historical`, {
+            cache: "no-store",
+          });
+          const histData = await histRes.json();
+          setHistoricalData(histData.data || []);
+        }
       } catch (error) {
         console.error("Stock detail fetch error:", error);
       } finally {
@@ -71,7 +75,9 @@ export default function StockDetailPage() {
       }
     }
 
-    fetchStockDetail();
+    fetchStockDetail(true);
+    const interval = setInterval(() => fetchStockDetail(false), 3000);
+    return () => clearInterval(interval);
   }, [symbol]);
 
   const handleGenerateSignal = async () => {

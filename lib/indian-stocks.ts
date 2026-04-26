@@ -96,13 +96,131 @@ function symbolToSeed(symbol: string): number {
   return seed;
 }
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const MARKET_OPEN_MINUTES = 9 * 60 + 15;
+const MARKET_CLOSE_MINUTES = 15 * 60 + 30;
+
+export interface MarketStatus {
+  isOpen: boolean;
+  closesInMs: number | null;
+}
+
+function getISTParts(date: Date): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  weekday: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+    hour12: false,
+  }).formatToParts(date);
+
+  const map = Object.fromEntries(
+    parts
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value])
+  );
+
+  const weekdayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  return {
+    year: parseInt(map.year || "0", 10),
+    month: parseInt(map.month || "1", 10),
+    day: parseInt(map.day || "1", 10),
+    hour: parseInt(map.hour || "0", 10),
+    minute: parseInt(map.minute || "0", 10),
+    weekday: weekdayMap[map.weekday || "Sun"] ?? 0,
+  };
+}
+
+function getPreviousTradingDate(istMidnightUtcMs: number): Date {
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  let candidate = new Date(istMidnightUtcMs - oneDayMs);
+
+  while (true) {
+    const p = getISTParts(candidate);
+    if (p.weekday >= 1 && p.weekday <= 5) return candidate;
+    candidate = new Date(candidate.getTime() - oneDayMs);
+  }
+}
+
+function getMarketTickSeed(now = new Date()): number {
+  const ist = getISTParts(now);
+  const minutesNow = ist.hour * 60 + ist.minute;
+  const isWeekday = ist.weekday >= 1 && ist.weekday <= 5;
+  const isMarketOpen =
+    isWeekday &&
+    minutesNow >= MARKET_OPEN_MINUTES &&
+    minutesNow < MARKET_CLOSE_MINUTES;
+
+  if (isMarketOpen) {
+    return Math.floor(now.getTime() / 3000);
+  }
+
+  const istMidnightUtcMs = Date.UTC(ist.year, ist.month - 1, ist.day) - IST_OFFSET_MS;
+  const closeUtcMsToday =
+    Date.UTC(ist.year, ist.month - 1, ist.day, 15, 30) - IST_OFFSET_MS;
+
+  if (isWeekday && minutesNow >= MARKET_CLOSE_MINUTES) {
+    return Math.floor(closeUtcMsToday / 3000);
+  }
+
+  const previousTradingDate = getPreviousTradingDate(istMidnightUtcMs);
+  const prevIst = getISTParts(previousTradingDate);
+  const prevCloseUtcMs =
+    Date.UTC(prevIst.year, prevIst.month - 1, prevIst.day, 15, 30) - IST_OFFSET_MS;
+  return Math.floor(prevCloseUtcMs / 3000);
+}
+
+export function getIndianMarketStatus(now = new Date()): MarketStatus {
+  const ist = getISTParts(now);
+  const minutesNow = ist.hour * 60 + ist.minute;
+  const isWeekday = ist.weekday >= 1 && ist.weekday <= 5;
+  const isOpen =
+    isWeekday &&
+    minutesNow >= MARKET_OPEN_MINUTES &&
+    minutesNow < MARKET_CLOSE_MINUTES;
+
+  if (!isOpen) {
+    return { isOpen: false, closesInMs: null };
+  }
+
+  const closeUtcMsToday =
+    Date.UTC(ist.year, ist.month - 1, ist.day, 15, 30) - IST_OFFSET_MS;
+
+  return {
+    isOpen: true,
+    closesInMs: Math.max(0, closeUtcMsToday - now.getTime()),
+  };
+}
+
 export function getMockStockData(symbol: string): StockQuote {
   const stockInfo = INDIAN_STOCKS.find((s) => s.symbol === symbol);
   if (!stockInfo) {
     throw new Error(`Stock ${symbol} not found`);
   }
 
-  const rng = new SeededRandom(symbolToSeed(symbol) + Date.now() % 86400000);
+  // Keep all API responses aligned to a shared 3-second market tick,
+  // but only advance ticks during Indian market hours.
+  const marketTick = getMarketTickSeed();
+  const rng = new SeededRandom(symbolToSeed(symbol) + marketTick);
   const basePrice = stockInfo.basePrice;
 
   // Daily variation ±3%

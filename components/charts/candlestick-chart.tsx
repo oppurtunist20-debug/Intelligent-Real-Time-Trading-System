@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { JSX, useMemo, useState } from "react";
 import {
   ComposedChart,
   Bar,
@@ -21,7 +21,7 @@ interface CandlestickChartProps {
   data: OHLCVData[];
 }
 
-type Period = "1M" | "3M" | "6M" | "1Y";
+type Period = "3m" | "1D" | "7D" | "1M" | "3M" | "6M" | "1Y";
 
 const CustomCandlestick = (props: {
   x?: number;
@@ -112,6 +112,9 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
   const [period, setPeriod] = useState<Period>("3M");
 
   const periodDays: Record<Period, number> = {
+    "3m": 3,
+    "1D": 1,
+    "7D": 7,
     "1M": 22,
     "3M": 66,
     "6M": 132,
@@ -137,7 +140,7 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
     <div>
       {/* Period selector */}
       <div className="flex gap-1 mb-4">
-        {(["1M", "3M", "6M", "1Y"] as Period[]).map((p) => (
+        {(["3m", "1D", "7D", "1M", "3M", "6M", "1Y"] as Period[]).map((p) => (
           <Button
             key={p}
             variant={period === p ? "default" : "ghost"}
@@ -176,7 +179,7 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
           {/* Candlestick bars */}
           <Bar
             dataKey="high"
-            shape={(props) => <CustomCandlestick {...props} payload={props.payload as CandlestickDataPoint} />}
+            shape={(props: JSX.IntrinsicAttributes & { x?: number; y?: number; width?: number; height?: number; payload?: CandlestickDataPoint; }) => <CustomCandlestick {...props} payload={props.payload as CandlestickDataPoint} />}
             isAnimationActive={false}
           />
 

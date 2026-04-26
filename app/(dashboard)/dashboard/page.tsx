@@ -23,8 +23,8 @@ export default function DashboardPage() {
     async function fetchDashboardData() {
       try {
         const [stocksRes, signalsRes] = await Promise.all([
-          fetch("/api/stocks"),
-          fetch("/api/signals"),
+          fetch("/api/stocks", { cache: "no-store" }),
+          fetch("/api/signals", { cache: "no-store" }),
         ]);
 
         const stocksData = await stocksRes.json();
@@ -43,8 +43,8 @@ export default function DashboardPage() {
     }
 
     fetchDashboardData();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000);
+    // Refresh every 3 seconds for live stock movement
+    const interval = setInterval(fetchDashboardData, 3000);
     return () => clearInterval(interval);
   }, []);
 

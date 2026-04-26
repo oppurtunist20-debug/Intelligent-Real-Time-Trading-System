@@ -17,6 +17,7 @@ import {
   Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getIndianMarketStatus } from "@/lib/indian-stocks";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -39,6 +40,8 @@ export function Sidebar() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [marketLabel, setMarketLabel] = useState("Market Closed");
+  const [marketOpen, setMarketOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,6 +49,33 @@ export function Sidebar() {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  useEffect(() => {
+    const updateMarketStatus = () => {
+      const status = getIndianMarketStatus();
+      setMarketOpen(status.isOpen);
+
+      if (!status.isOpen || status.closesInMs === null) {
+        setMarketLabel("Market Closed");
+        return;
+      }
+
+      const totalSeconds = Math.floor(status.closesInMs / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      setMarketLabel(
+        `Market Open (${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+          2,
+          "0"
+        )}:${String(seconds).padStart(2, "0")} left)`
+      );
+    };
+
+    updateMarketStatus();
+    const interval = setInterval(updateMarketStatus, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim() || sending) return;
@@ -134,8 +164,15 @@ export function Sidebar() {
             AI Assistant
           </button>
           <div className="flex items-center justify-center gap-1.5 mt-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-green-500">Markets Open</span>
+            <div
+              className={cn(
+                "w-1.5 h-1.5 rounded-full",
+                marketOpen ? "bg-green-500 animate-pulse" : "bg-red-500"
+              )}
+            />
+            <span className={cn("text-xs", marketOpen ? "text-green-500" : "text-red-500")}>
+              {marketLabel}
+            </span>
           </div>
         </div>
       </aside>
