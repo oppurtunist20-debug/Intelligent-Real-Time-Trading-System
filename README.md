@@ -452,7 +452,7 @@ python main.py
 # → http://localhost:8000
 ```
 
----
+-------------------
 
 ## Folder Structure Summary
 
