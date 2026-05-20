@@ -4,7 +4,7 @@
 
 An AI-powered, full-stack trading intelligence platform for Indian stock markets (NSE/BSE). It provides real-time trading signals, technical analysis, sentiment monitoring, macro indicator tracking, portfolio management, and risk analysis — all powered by Google Gemini AI and a Python FastAPI backend.
 
----
+-------
 
 ## Tech Stack
 
